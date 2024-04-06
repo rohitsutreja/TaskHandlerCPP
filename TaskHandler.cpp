@@ -284,12 +284,12 @@ int main() {
         });
 
 
-    CROW_ROUTE(app, "/auth/logout")
-        .methods("POST"_method)
-        ([](const crow::request& req) {
-            
+    //CROW_ROUTE(app, "/auth/logout")
+    //    .methods("POST"_method)
+    //    ([](const crow::request& req) {
+    //        
 
-            });
+    //        });
 
 
 
