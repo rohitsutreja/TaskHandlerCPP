@@ -2,12 +2,16 @@
 
 #include <string>
 #include <vector>
-#include "crow_all.h"
+#include"crow_all.h"
 #include <chrono>
 #include"Util.h"
-
+#include "../DB/MongoDB.h"
 #include <optional>
-extern mongocxx::database db;
+
+//extern mongocxx::database db;
+
+
+
 class User {
 
 public:
@@ -79,7 +83,8 @@ public:
 
 	bool save() {
 
-		mongocxx::collection coll = db["users"];
+		//mongocxx::collection coll = db["users"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 
 		bsoncxx::builder::basic::array roles_array;
 
@@ -121,8 +126,8 @@ public:
 	}
 
 	void update() {
-		mongocxx::collection coll = db["users"];
-
+		//mongocxx::collection coll = db["users"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 		auto filter = bsoncxx::builder::basic::make_document(
 			bsoncxx::builder::basic::kvp("_id", bsoncxx::oid(m_id))
 		);
@@ -152,8 +157,8 @@ public:
 	}
 
 	void remove() {
-		mongocxx::collection coll = db["users"];
-
+		//mongocxx::collection coll = db["users"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 		auto filter = bsoncxx::builder::basic::make_document(
 			bsoncxx::builder::basic::kvp("_id", bsoncxx::oid(m_id))
 		);
@@ -162,7 +167,8 @@ public:
 	}
 
 	static std::optional<User> getUser(std::string id) {
-		mongocxx::collection coll = db["users"];
+	//	mongocxx::collection coll = db["users"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 
 		auto id1 = bsoncxx::oid(id);
 		auto document = bsoncxx::builder::basic::make_document(
@@ -207,8 +213,8 @@ public:
 	}
 
 	static std::optional<User> getUserByUserName(std::string username) {
-		mongocxx::collection coll = db["users"];
-
+		//mongocxx::collection coll = db["users"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 		auto document = bsoncxx::builder::basic::make_document(
 			bsoncxx::builder::basic::kvp("username", username)
 		);
@@ -252,8 +258,8 @@ public:
 	}
 
 	static std::vector<User> getAllUsers() {
-		mongocxx::collection coll = db["users"];
-
+	//	mongocxx::collection coll = db["users"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 		auto result = coll.find({});
 
 		std::vector<User> users{};

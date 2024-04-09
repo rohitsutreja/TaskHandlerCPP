@@ -8,16 +8,16 @@
 #include "include/Model/User.h"
 #include "include/Model/Note.h"
 #include "crow_all.h"
-#include "bcrypt.h"
 #include"openssl/ssl.h"
 #include "jwt-cpp/jwt.h"
 #include <algorithm>
+#include "include/DB/MongoDB.h"
 
 
 
-mongocxx::instance inst{};
-mongocxx::client client{ mongocxx::uri{"mongodb+srv://rohit:drbezhkeTNd7rEZL@cluster0.ldjcnlk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"} };
-mongocxx::database db = client["test"];
+//mongocxx::instance inst{};
+//mongocxx::client client{ mongocxx::uri{"mongodb+srv://rohit:drbezhkeTNd7rEZL@cluster0.ldjcnlk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"} };
+//mongocxx::database db = client["test"];
 
 struct VerifyJWT;
 
@@ -28,45 +28,6 @@ struct VerifyJWT : crow::ILocalMiddleware {
         std::string username;
         crow::json::rvalue roles; 
     };
-
-
-    //void before_handle(crow::request& req, crow::response& res, context& ctx) {
-    //    auto token = req.get_header_value("authorization");
-
-    //    auto accesstoken = token.substr(7);
-
-    //    try {
-    //                auto decoded = jwt::decode(accesstoken);
-
-    //                 auto verifier = jwt::verify()
-    //                    .allow_algorithm(jwt::algorithm::hs256{ "ThisIs256BitSecret" });
-
-    //                try {
-
-    //                    std::cout << decoded.get_payload_claim("UserInfo").as_string();
-    //                    verifier.verify(decoded);
-
-    //                    std::string str = decoded.get_payload_claim("UserInfo").as_string();
-
-
-    //                    std::cout << str;
-    //                    crow::json::rvalue data = crow::json::load(str);
-
-    //                    ctx.username = data["username"].s();
-    //                    ctx.roles    = data["roles"];               
-
-    //                }
-    //                catch (...) {
-    //                    std::cout << "Wrong token";
-    //                    res.body = "Wrong token";
-    //                   // res.end();
-    //                }
-    //            }
-    //            catch (...) {
-    //                std::cout << "Invalid Token";
-    //            }
-    //}
-
 
     void before_handle(crow::request& req, crow::response& res, context& ctx) {
         auto& ctx1 = app.get_context<crow::CookieParser>(req);
@@ -85,17 +46,15 @@ struct VerifyJWT : crow::ILocalMiddleware {
 
                 std::string str = decoded.get_payload_claim("UserInfo").as_string();
 
-
-                std::cout << str;
                 crow::json::rvalue data = crow::json::load(str);
 
                 ctx.username = data["username"].s();
-                ctx.roles    = data["roles"];               
+                ctx.roles    = data["roles"];       
 
-                std::cout << ctx.roles;
+
+
             }
             catch (...) {
-                std::cout << "Wrong token";
                 res.body = "Wrong token";
                 res.end();
             }
@@ -108,22 +67,31 @@ struct VerifyJWT : crow::ILocalMiddleware {
     void after_handle(crow::request&, crow::response&, context&) {}
 };
 
-
-
 crow::App<crow::CookieParser, crow::CORSHandler, VerifyJWT> app;
 
 
+
 int main() {
+
+
+    auto& db = MongoDB::getInstance()->getDB();
+
+    crow::Blueprint usersRoutes("users");
+    crow::Blueprint notesRoutes("notes");
+    crow::Blueprint authRoutes("auth");
+
   
     auto& cors = app.get_middleware<crow::CORSHandler>();
    
+    cors.global().origin("http://localhost:3000");
+    cors.global().allow_credentials();
+    cors.global().headers("Content-Type","Authorization");
+    cors.global().methods("GET"_method, "POST"_method, "DELETE"_method, "PATCH"_method, "OPTIONS"_method); 
 
-     cors.global().origin("http://localhost:3002");
-     cors.global().allow_credentials();
-     cors.global().headers("Content-Type","Authorization");
-     cors.global().methods("GET"_method, "POST"_method, "DELETE"_method, "PATCH"_method, "OPTIONS"_method); 
-
-    CROW_ROUTE(app, "/auth/")
+    
+   
+    //Login
+    CROW_BP_ROUTE(authRoutes, "/")
         .methods("POST"_method)
         ([] (const crow::request& req){
         crow::json::rvalue data = crow::json::load(req.body);
@@ -143,59 +111,20 @@ int main() {
         }
         catch (...) {
            
-            return crow::response{ 400, "ALl fields required" };
+            return crow::response{ 400, "All fields required" };
         }
-
-
-      
-
 
         auto foundUser = User::getUserByUserName(username);
 
         if (!foundUser || !foundUser->getStatus()) {
-            return crow::response{ "Unauthorized" };
+            return crow::response{ 401,"You are Unauthorized" };
         }
 
         if (foundUser->getPassword() != password) {
-            return crow::response{ "Unauthorized" };
+            return crow::response{401, "Incorrect Credentials" };
         }
 
-        //crow::response res;
-
-        //auto refreshtoken = jwt::create().set_type("JWT").set_payload_claim("username", jwt::claim(foundUser->getUserName())).sign(jwt::algorithm::hs256{ "ThisIs256BitSecret" });
-
-        //res.add_header("Set-Cookie", "jwt=" + refreshtoken + "; Max - Age = 360000; Path = / ; Secure; HttpOnly");
-        //res.set_header("Content-Type","application/json");
-
-
-
-        //std::vector<std::string> roles = foundUser->getRoles(); // replace with actual roles
-        //crow::json::wvalue rolesData;
-
-        //int i = 0;
-        //for (auto& role : roles) {
-        //    rolesData[i] = role;
-        //    i++;
-        //}
-
-        //crow::json::wvalue UserInfo{ {{"username", foundUser->getUserName()},{"roles", rolesData}} };
-
-        //
-
-        //auto token = jwt::create()
-        //    .set_type("JWT")
-        //    .set_payload_claim("UserInfo", jwt::claim(UserInfo.dump()))
-        //    .sign(jwt::algorithm::hs256{ "ThisIs256BitSecret" });
-
-
-        //res.body = crow::json::wvalue{ {"accessToken",token} }.dump();
-
-        //return res;
-
-
-        crow::response res;
-
-        std::vector<std::string> roles = foundUser->getRoles(); // replace with actual roles
+        std::vector<std::string> roles = foundUser->getRoles();
         crow::json::wvalue rolesData;
 
         int i = 0;
@@ -204,7 +133,7 @@ int main() {
             i++;
         }
 
-        crow::json::wvalue UserInfo{  {{"username", username},{"roles", rolesData} } };
+        crow::json::wvalue UserInfo{{{"username", username},{"roles", rolesData}}};
           
         auto token = jwt::create()
             .set_type("JWT")
@@ -212,45 +141,47 @@ int main() {
             .sign(jwt::algorithm::hs256{ "ThisIs256BitSecret" });
 
       
-
+        crow::response res;
         res.add_header("Set-Cookie", "jwt=" + token + "; Max - Age = 360000; Path = / ; Secure; HttpOnly");
         res.set_header("Content-Type","application/json");
-
-        res.body = crow::json::wvalue{ {"accessToken", token }}.dump();
-
-        std::cout << "sent " << res.body;
+        res.body = crow::json::wvalue{ {"accessToken", token } }.dump();
+        res.code = 200;
 
         return res;
-
-
         });
 
-
-    CROW_ROUTE(app, "/auth/refresh/").methods("GET"_method)([](const crow::request& req) {
+    //RefreshToken
+    CROW_BP_ROUTE(authRoutes, "/refresh/")
+        .methods("GET"_method).CROW_MIDDLEWARES(app, VerifyJWT)([](const crow::request& req) {
 
         auto& ctx1 = app.get_context<crow::CookieParser>(req);
         std::string refreshToken = ctx1.get_cookie("jwt");
 
         if (refreshToken.empty()) {
+            
             return crow::response{ 401, "Unautharized" };
         }
 
         try {
             auto decoded = jwt::decode(refreshToken);
 
-            
             auto verifier = jwt::verify()
                 .allow_algorithm(jwt::algorithm::hs256{ "ThisIs256BitSecret" });
 
+            
             try {
                 verifier.verify(decoded);
-                auto user = User::getUserByUserName(decoded.get_payload_claim("UserInfo").to_json().get("username").to_str());
+
+
+                auto& ctx = app.get_context<VerifyJWT>(req);
+
+                auto user = User::getUserByUserName(ctx.username);
 
                 if (!user) {
-                    return crow::response{ 401, "Unauthraized" };
+                    return crow::response{ 401, "Unauthoraized" };
                 }
 
-          
+                
                 std::vector<std::string> roles = user->getRoles(); // replace with actual roles
                 crow::json::wvalue rolesData;
 
@@ -268,7 +199,7 @@ int main() {
                     .sign(jwt::algorithm::hs256{ "ThisIs256BitSecret" });
 
 
-
+                std::cout << "hello3";
                 return crow::response{ crow::json::wvalue{{"accessToken",token}}};
 
                 
@@ -283,33 +214,182 @@ int main() {
 
         });
 
+    //Log out
+    CROW_BP_ROUTE(authRoutes, "/logout/")
+        .methods("GET"_method)([](const crow::request& req) {
+        crow::response res;
+            res.code = 200;
+            res.add_header("Set-Cookie", "jwt = ''; path = / ; expires = Thu, 01 Jan 1970 00:00 : 00 GMT");
+       
+         return res;
+        });
 
-    //CROW_ROUTE(app, "/auth/logout")
-    //    .methods("POST"_method)
-    //    ([](const crow::request& req) {
-    //        
 
-    //        });
+    //Get all Notes
+    CROW_BP_ROUTE(notesRoutes, "/")
+        .methods("GET"_method).CROW_MIDDLEWARES(app, VerifyJWT)
+        ([&] {
+
+        crow::json::wvalue notes;
+        std::vector<Note> allNotes = Note::getAllNotes();
+
+        if (allNotes.size() == 0) {
+            return crow::response{ 400, "No notes found" };
+        }
+
+        auto users = User::getAllUsers();
+
+        int i = 0;
+        for (const auto& note : allNotes) {
+            notes[i] = note.to_json();
+            notes[i]["username"] = std::find(std::begin(users), std::end(users), User(note.getUser()))->getUserName();
+            i++;
+        }
+
+        return crow::response{ 200, notes };
+            });
 
 
 
-    CROW_ROUTE(app, "/auth/refresh/").methods("OPTIONS"_method).CROW_MIDDLEWARES(app, VerifyJWT)([]() {
-        return crow::response{ "OK" }; });
+    //Delete a Note
+    CROW_BP_ROUTE(notesRoutes, "/")
+        .methods("DELETE"_method).CROW_MIDDLEWARES(app, VerifyJWT)
+        ([&](const crow::request& req) {
+        crow::json::rvalue data = crow::json::load(req.body);
 
-    CROW_ROUTE(app, "/auth/").methods("OPTIONS"_method).CROW_MIDDLEWARES(app, VerifyJWT)([]() {
-        return crow::response{ "OK" }; });
+        std::string id;
+        try {
+            id = data["id"].s();
 
-    CROW_ROUTE(app, "/users/").methods("OPTIONS"_method).CROW_MIDDLEWARES(app, VerifyJWT)([]() {
-        return crow::response{ "OK" }; });
+            if (id.empty()) {
+                return crow::response{ 400,"Note ID required" };
+            }
+        }
+        catch (...) {
+            return crow::response{ 400,"Note ID required" };
+        }
 
-    CROW_ROUTE(app, "/notes/").methods("OPTIONS"_method).CROW_MIDDLEWARES(app, VerifyJWT)([]() {
-        return crow::response{ "OK" }; });
+        auto note = Note::getNote(id);
+
+        if (!note) {
+            return crow::response{ 400,"Note not found" };
+        }
+
+        note->remove();
+
+        return crow::response{200, "Note removed successfully" };
+            });
+
+
+    //Add new Note
+    CROW_BP_ROUTE(notesRoutes, "/")
+        .methods("POST"_method).CROW_MIDDLEWARES(app, VerifyJWT)
+        ([&](const crow::request& req) {
+        crow::json::rvalue data = crow::json::load(req.body);
+
+        std::string user;
+        std::string title;
+        std::string text;
+
+        try {
+            user = data["user"].s();
+            title = data["title"].s();
+            text = data["text"].s();
+
+            if (user.empty() || title.empty() || text.empty()) {
+                return crow::response{ 400, "All fields are required." };
+            }
+        }
+        catch (...) {
+            return crow::response{ 400, "All fields are required." };
+        }
+
+      //  mongocxx::collection coll = db["notes"];
+     
+        mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
+
+        auto document = bsoncxx::builder::basic::make_document(
+            bsoncxx::builder::basic::kvp("title", title)
+        );
+
+        auto duplicate = coll.find_one(document.view());
+
+
+        if (duplicate) {
+            return crow::response{ 409, "Duplicate note title" };
+        }
+        Note note{ user,title,text };
+        note.save();
+
+        return crow::response{ 201, "Note created successfully" };
+            });
+
+
+    //Update Note
+    CROW_BP_ROUTE(notesRoutes, "/")
+        .methods("PATCH"_method).CROW_MIDDLEWARES(app, VerifyJWT)
+        ([&](const crow::request& req) {
+        std::cout << "\nfirst\n";
+        crow::json::rvalue data = crow::json::load(req.body);
+
+        std::cout << "\nsecond\n";
+        std::string id;
+        std::string user;
+        std::string title;
+        std::string text;
+        bool completed;
+
+        try {
+            id = data["id"].s();
+            user = data["user"].s();
+            title = data["title"].s();
+            text = data["text"].s();
+            completed = data["completed"].b();
+
+            if (id.empty() || user.empty() || title.empty() || text.empty()) {
+                return crow::response{ 400, "All fields are required." };
+            }
+
+        }
+        catch (...) {
+            return crow::response{ 400,"All fields are required." };
+        }
+
+        auto note = Note::getNote(id);
+
+        if (!note) {
+            return crow::response{ 400,"Note not found" };
+        }
+
+      //  mongocxx::collection coll = db["notes"];
+
+        mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
+
+        auto document = bsoncxx::builder::basic::make_document(
+            bsoncxx::builder::basic::kvp("title", title)
+        );
+
+        auto duplicate = coll.find_one(document.view());
+
+        if (duplicate && duplicate.value()["_id"].get_oid().value.to_string() != id) {
+            return crow::response{ 409, "Duplicate note title" };
+        }
+
+        note->setTitle(title);
+        note->setCompleted(completed);
+        note->setText(text);
+        note->setUser(user);
+
+        note->update();
+
+        return crow::response{ 200, "Note updated successfully" };
+            });
 
     //Get all Users
-    CROW_ROUTE(app, "/users/")
+    CROW_BP_ROUTE(usersRoutes, "/")
         .methods("GET"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([] (const crow::request& req){
-     
+        ([&](const crow::request& req) {
+
         crow::json::wvalue users;
         std::vector<User> u = User::getAllUsers();
 
@@ -317,42 +397,43 @@ int main() {
 
         int i = 0;
         for (const auto& user : u) {
-            std::cout << i << '\n';
             users[i] = user.to_json();
             i++;
         }
 
 
         return crow::response{ users };
-    });
+            });
 
 
     //Delete a User
-    CROW_ROUTE(app, "/users/")
+    CROW_BP_ROUTE(usersRoutes, "/")
         .methods("DELETE"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([](const crow::request& req) {
+        ([&](const crow::request& req) {
         crow::json::rvalue data = crow::json::load(req.body);
-        
+
         std::string id;
         try {
-           id = data["id"].s();
+            id = data["id"].s();
 
-           if (id.empty()) {
-               return crow::response{400, "User ID Required" };
-           }
+            if (id.empty()) {
+                return crow::response{ 400, "User ID Required" };
+            }
         }
         catch (...) {
-           return crow::response{ 400, "User ID Required" };
+            return crow::response{ 400, "User ID Required" };
         }
-         
-        mongocxx::collection coll = db["notes"];
+
+       // mongocxx::collection coll = db["notes"];
+
+        mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
 
         auto document = bsoncxx::builder::basic::make_document(bsoncxx::builder::basic::kvp("user", bsoncxx::oid(id)));
 
         auto result = coll.find_one(document.view());
 
         if (result) {
-           return crow::response{ 400,  "User has assigned notes" };  
+            return crow::response{ 400,  "User has assigned notes" };
         }
 
 
@@ -365,13 +446,13 @@ int main() {
         user->remove();
 
         return crow::response{ "User removed successfully" };
-        });
+            });
 
 
     //Add new User
-    CROW_ROUTE(app, "/users/")
+    CROW_BP_ROUTE(usersRoutes, "/")
         .methods("POST"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([](const crow::request& req) {
+        ([&](const crow::request& req) {
 
         crow::json::rvalue data = crow::json::load(req.body);
 
@@ -390,21 +471,24 @@ int main() {
         catch (...) {
             return crow::response{ 400, "All fields are required ok" };
         }
-        
+
 
         //find duplicate
-        mongocxx::collection coll = db["users"];
+     //   mongocxx::collection coll = db["users"];
+
+
+        mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
         auto document = bsoncxx::builder::basic::make_document(
             bsoncxx::builder::basic::kvp("username", username)
         );
 
         auto result = coll.find_one(document.view());
 
-        if (result ) {
+        if (result) {
             return crow::response{ 409, "Duplicate Username" };
         }
 
-        
+
         std::vector<std::string> roles;
         for (const auto& v : rolesData) {
             roles.push_back(v.s());
@@ -413,17 +497,17 @@ int main() {
         User u{ username, password, roles };
 
         if (u.save()) {
-            return crow::response{201,  "User created successfully" };
+            return crow::response{ 201,  "User created successfully" };
         };
 
         return crow::response{ 400 , "Invalid User data recieved" };
-        });
+            });
 
 
     //Update a User
-    CROW_ROUTE(app, "/users/")
+    CROW_BP_ROUTE(usersRoutes, "/")
         .methods("PATCH"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([](const crow::request& req) {
+        ([&](const crow::request& req) {
         crow::json::rvalue data = crow::json::load(req.body);
 
 
@@ -433,7 +517,7 @@ int main() {
         bool active = false;
         crow::json::rvalue rolesData;
 
-        try { 
+        try {
             password = data["password"].s();
         }
         catch (...) {
@@ -469,7 +553,10 @@ int main() {
 
 
         //find duplicate
-        mongocxx::collection coll = db["users"];
+      //  mongocxx::collection coll = db["users"];
+
+
+        mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
         auto document = bsoncxx::builder::basic::make_document(
             bsoncxx::builder::basic::kvp("username", username)
         );
@@ -477,17 +564,17 @@ int main() {
         auto result = coll.find_one(document.view());
 
         if (result) {
-                bsoncxx::document::view view = result->view();
-                if (result && view["_id"].get_oid().value.to_string() != id) {
-                    return crow::response{409, "Duplicate Username" };
-                }
+            bsoncxx::document::view view = result->view();
+            if (result && view["_id"].get_oid().value.to_string() != id) {
+                return crow::response{ 409, "Duplicate Username" };
+            }
         }
 
         user->setUserName(username);
         if (!password.empty()) {
             user->setPassword(password);
         }
-    
+
         user->setStatus(active);
         user->setRoles(roles);
 
@@ -497,172 +584,11 @@ int main() {
         return crow::response{ "User updated" };
         });
 
-  
-    //Get all Notes
-    CROW_ROUTE(app, "/notes/")
-        .methods("GET"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([] {
-   
-        crow::json::wvalue notes;
-        std::vector<Note> allNotes = Note::getAllNotes();
-
-        if (allNotes.size() == 0) {
-            return crow::response{ 400, "No notes found" };
-        }
-
-        auto users = User::getAllUsers();
-
-        int i = 0;
-        for (const auto& note : allNotes) {
-            notes[i] = note.to_json();
-            notes[i]["username"] = std::find(std::begin(users), std::end(users), User(note.getUser()))->getUserName();
-            i++;
-        }
-
-        return crow::response{ notes };
-            });
 
 
-
-    //Delete a Note
-    CROW_ROUTE(app, "/notes/")
-        .methods("DELETE"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([](const crow::request& req) {
-        crow::json::rvalue data = crow::json::load(req.body);
-
-        std::string id;
-        try {
-            id = data["id"].s();
-
-            if (id.empty()) {
-                return crow::response{ 400,"Note ID required" };
-            }
-        }
-        catch (...) {
-            return crow::response{ 400,"Note ID required" };
-        }
-     
-        auto note = Note::getNote(id);
-
-        if (!note) {
-           return crow::response{ 400,"Note not found" };
-        }
-
-        note->remove();
-
-        return crow::response{ "Note removed successfully" };
-        });
-
-
-    //Add new Note
-    CROW_ROUTE(app, "/notes/")
-        .methods("POST"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([](const crow::request& req) {
-        crow::json::rvalue data = crow::json::load(req.body);
-
-        std::string user;
-        std::string title;
-        std::string text;
-
-        try {
-           user = data["user"].s();
-           title = data["title"].s();
-           text = data["text"].s();
-
-            if (user.empty() || title.empty() || text.empty()) {
-                return crow::response{400, "All fields are required." };
-            }
-        }
-        catch (...) {
-            return crow::response{ 400, "All fields are required." };
-        }
-
-        mongocxx::collection coll = db["notes"];
-
-        auto document = bsoncxx::builder::basic::make_document(
-            bsoncxx::builder::basic::kvp("title", title)
-        );
-
-        auto duplicate = coll.find_one(document.view());
-
-
-        if (duplicate) {
-            return crow::response{ 409, "Duplicate note title" };
-        }
-        Note note{ user,title,text };
-        note.save();
-
-        return crow::response{201, "Note created successfully" };
-        });
-
-
-    //Update Note
-    CROW_ROUTE(app, "/notes/")
-        .methods("PATCH"_method).CROW_MIDDLEWARES(app, VerifyJWT)
-        ([](const crow::request& req) {
-        std::cout << "\nfirst\n";
-        crow::json::rvalue data = crow::json::load(req.body);
-
-        std::cout << "\nsecond\n";
-        std::string id;
-        std::string user;
-        std::string title;
-        std::string text;
-        bool completed;
-
-        try {
-             id = data["id"].s();
-             user = data["user"].s();
-             title = data["title"].s();
-             text = data["text"].s();
-             completed = data["completed"].b();
-
-            if (id.empty() || user.empty() || title.empty() || text.empty()) {
-                return crow::response{ 400, "All fields are required." };
-            }
-
-        }
-        catch(...){
-            return crow::response{ 400,"All fields are required." };
-        }
-
-       
-
-        auto note = Note::getNote(id);
-
-        std::cout << "\nthird\n";
-
-        if (!note) {
-            return crow::response{ 400,"Note not found" };
-        }
-
-        mongocxx::collection coll = db["notes"];
-
-        auto document = bsoncxx::builder::basic::make_document(
-            bsoncxx::builder::basic::kvp("title", title)
-        );
-
-
-        std::cout << "\nfourth\n";
-        auto duplicate = coll.find_one(document.view());
-
-        if (duplicate && duplicate.value()["_id"].get_oid().value.to_string() != id) {
-            return crow::response{ 409, "Duplicate note title" };
-        }
-
-        note->setTitle(title);
-        note->setCompleted(completed);
-        note->setText(text);
-        note->setUser(user);
-
-
-        std::cout << "\nfifth\n";
-        note->update();
-
-
-        std::cout << "\nsixth\n";
-        return crow::response{ "Note updated successfully" };
-            });
+    app.register_blueprint(usersRoutes);
+    app.register_blueprint(notesRoutes);
+    app.register_blueprint(authRoutes);
 
     app.bindaddr("127.0.0.1").port(5000).run();
 }

@@ -1,3 +1,5 @@
+
+
 #include "Util.h"
 #include "User.h"
 #include <string>
@@ -8,8 +10,9 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
 #include <mongocxx/exception/exception.hpp>
+#include "../DB/MongoDB.h"
 
-extern mongocxx::database db;
+//extern mongocxx::database db;
 
 
 class Note {
@@ -91,15 +94,16 @@ public:
 			bsoncxx::builder::basic::kvp("createdAt", timestamp),
 			bsoncxx::builder::basic::kvp("updatedAt", timestamp)
 		);
-		auto coll = db["notes"];
+		//auto coll = db["notes"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
 		coll.insert_one(document.view());
 		std::cout << "Note saved successfully." << std::endl;
 		
 	}
 
 	void remove() {
-		mongocxx::collection coll = db["notes"];
-
+		//mongocxx::collection coll = db["notes"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
 		auto filter = bsoncxx::builder::basic::make_document(
 			bsoncxx::builder::basic::kvp("_id", bsoncxx::oid(m_id))
 		);
@@ -108,8 +112,8 @@ public:
 	}
 
 	void update() {
-		mongocxx::collection coll = db["notes"];
-
+		//mongocxx::collection coll = db["notes"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
 		auto filter = bsoncxx::builder::basic::make_document(
 			bsoncxx::builder::basic::kvp("_id", bsoncxx::oid(m_id))
 		);
@@ -134,8 +138,8 @@ public:
 	}
 
 	static std::optional<Note> getNote(const std::string& id) {
-		mongocxx::collection coll = db["notes"];
-
+		//mongocxx::collection coll = db["notes"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
 		auto ID = bsoncxx::oid(id);
 
 		auto document = bsoncxx::builder::basic::make_document(
@@ -166,8 +170,8 @@ public:
 	}
 
 	static std::vector<Note> getAllNotes() {
-		mongocxx::collection coll = db["notes"];
-
+		//mongocxx::collection coll = db["notes"];
+		mongocxx::collection coll = MongoDB::getInstance()->getDB()["notes"];
 		auto result = coll.find({});
 
 		std::vector<Note> notes{};
@@ -193,12 +197,6 @@ public:
 	crow::json::wvalue to_json() const {
 		crow::json::wvalue note_json;
 		note_json["_id"] = m_id;
-
-		//auto user = User::getUser(m_user);
-		//if (user) {
-		//	note_json["username"] = user->getUserName();
-		//}
-
 		note_json["user"]      = m_user;
 		note_json["title"]     = m_title;
 		note_json["text"]      = m_text;
