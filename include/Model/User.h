@@ -8,9 +8,9 @@
 #include "../DB/MongoDB.h"
 #include <optional>
 
-//extern mongocxx::database db;
-
-
+using bsoncxx::builder::basic::make_document;
+using bsoncxx::builder::basic::kvp;
+using bsoncxx::builder::basic::make_array;
 
 class User {
 
@@ -23,6 +23,11 @@ public:
 
 	User(std::string_view id) : m_id{ id } {
 
+	}
+
+
+	const std::string& getId() const {
+		return m_id;
 	}
 
 	const std::string& getUserName() const{
@@ -39,10 +44,6 @@ public:
 
 	bool getStatus() {
 		return m_active;
-	}
-
-	const std::string& getId() const {
-		return m_id;
 	}
 
 
@@ -66,6 +67,7 @@ public:
 		m_roles = roles;
 	}
 
+
 	void setCreatedAt(std::string_view ca) {
 		m_createdAt = ca;
 	}
@@ -74,15 +76,11 @@ public:
 		m_updatedAt = ua;
 	}
 
-
-
 	friend bool operator==(const User& u1, const User& u2) {
 		return u1.getId() == u2.getId();
 	}
 
-
 	bool save() {
-
 		//mongocxx::collection coll = db["users"];
 		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 
@@ -94,28 +92,21 @@ public:
 
 		auto timestamp = getLogTimeString();
 
-		auto document = bsoncxx::builder::basic::make_document(
-			bsoncxx::builder::basic::kvp("username", m_username),
-			bsoncxx::builder::basic::kvp("password", m_password),
-			bsoncxx::builder::basic::kvp("roles", roles_array),
-			bsoncxx::builder::basic::kvp("isActive", m_active),
-			bsoncxx::builder::basic::kvp("createdAt", timestamp),
-			bsoncxx::builder::basic::kvp("updatedAt", timestamp)
+		auto document = make_document(
+			kvp("username", m_username),
+			kvp("password", m_password),
+			kvp("roles", roles_array),
+			kvp("isActive", m_active),
+			kvp("createdAt", timestamp),
+			kvp("updatedAt", timestamp)
 			
 		);
 
-		// Convert document to JSON for debugging
-		std::cout << bsoncxx::to_json(document.view()) << std::endl;
-
-		// Insert the document into the "users" collection
 		auto result = coll.insert_one(document.view());
 
 		if (result) {
-	
 			auto idElement = result->inserted_id();
 			bsoncxx::types::b_oid id = idElement.get_oid();
-
-			// Convert the _id to a string
 			m_id = id.value.to_string();
 		}
 		else {
@@ -126,10 +117,9 @@ public:
 	}
 
 	void update() {
-		//mongocxx::collection coll = db["users"];
 		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
-		auto filter = bsoncxx::builder::basic::make_document(
-			bsoncxx::builder::basic::kvp("_id", bsoncxx::oid(m_id))
+		auto filter = make_document(
+			kvp("_id", bsoncxx::oid(m_id))
 		);
 
 
@@ -141,13 +131,13 @@ public:
 
 		auto timestamp = getLogTimeString();
 
-		auto update = bsoncxx::builder::basic::make_document(
-			bsoncxx::builder::basic::kvp("$set", bsoncxx::builder::basic::make_document(
-				bsoncxx::builder::basic::kvp("username", m_username),
-				bsoncxx::builder::basic::kvp("password", m_password),
-				bsoncxx::builder::basic::kvp("roles",roles_array),
-				bsoncxx::builder::basic::kvp("isActive", m_active),
-				bsoncxx::builder::basic::kvp("updatedAt", timestamp)
+		auto update = make_document(
+			kvp("$set", make_document(
+				kvp("username", m_username),
+				kvp("password", m_password),
+				kvp("roles",roles_array),
+				kvp("isActive", m_active),
+				kvp("updatedAt", timestamp)
 
 			))
 		);
@@ -157,10 +147,9 @@ public:
 	}
 
 	void remove() {
-		//mongocxx::collection coll = db["users"];
 		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
-		auto filter = bsoncxx::builder::basic::make_document(
-			bsoncxx::builder::basic::kvp("_id", bsoncxx::oid(m_id))
+		auto filter = make_document(
+			kvp("_id", bsoncxx::oid(m_id))
 		);
 
 		coll.delete_one(filter.view());
@@ -213,10 +202,9 @@ public:
 	}
 
 	static std::optional<User> getUserByUserName(std::string username) {
-		//mongocxx::collection coll = db["users"];
 		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
-		auto document = bsoncxx::builder::basic::make_document(
-			bsoncxx::builder::basic::kvp("username", username)
+		auto document = make_document(
+			kvp("username", username)
 		);
 
 		auto result = coll.find_one(document.view());
@@ -227,17 +215,9 @@ public:
 			std::string id = view["_id"].get_oid().value.to_string();
 			std::string name = static_cast<std::string>(view["username"].get_string().value);
 			std::string password = static_cast<std::string>(view["password"].get_string().value);
-			bool isActive = true;
-			std::string createdAt = "";
-			std::string updatedAt = "";
-			try {
-				isActive = view["isActive"].get_bool().value;
-				createdAt = static_cast<std::string>(view["createdAt"].get_string().value);
-				updatedAt = static_cast<std::string>(view["updatedAt"].get_string().value);
-			}
-			catch (...) {
-
-			}
+			bool isActive = isActive = view["isActive"].get_bool().value;
+			std::string createdAt = static_cast<std::string>(view["createdAt"].get_string().value);
+			std::string updatedAt = static_cast<std::string>(view["updatedAt"].get_string().value);
 
 			std::vector<std::string> roles;
 			auto rolesArray = view["roles"].get_array().value;
@@ -258,7 +238,6 @@ public:
 	}
 
 	static std::vector<User> getAllUsers() {
-	//	mongocxx::collection coll = db["users"];
 		mongocxx::collection coll = MongoDB::getInstance()->getDB()["users"];
 		auto result = coll.find({});
 
@@ -268,22 +247,14 @@ public:
 			std::string id = user["_id"].get_oid().value.to_string();
 			std::string name = static_cast<std::string>(user["username"].get_string().value);
 			std::string password = static_cast<std::string>(user["password"].get_string().value);
-			bool isActive = true;
-			std::string createdAt = "";
-			std::string updatedAt = "";
-			try {
-				createdAt = static_cast<std::string>(user["createdAt"].get_string().value);
-				updatedAt = static_cast<std::string>(user["updatedAt"].get_string().value);
-				isActive = user["isActive"].get_bool().value;
-			}
-			catch (...) {
-
-			}
-			
-
+			bool isActive = user["isActive"].get_bool().value;
+			std::string createdAt = static_cast<std::string>(user["createdAt"].get_string().value);;
+			std::string updatedAt = static_cast<std::string>(user["updatedAt"].get_string().value);
 
 			std::vector<std::string> roles;
+
 			auto rolesArray = user["roles"].get_array().value;
+
 			for (const auto& role : rolesArray) {
 				roles.push_back(static_cast<std::string>(role.get_string().value));
 			}
@@ -298,10 +269,11 @@ public:
 
 	crow::json::wvalue to_json() const {
 		crow::json::wvalue user_json;
-		user_json["_id"] = m_id;
-		user_json["username"] = m_username;
-		user_json["password"] = m_password;
-		user_json["active"] = m_active;
+
+		user_json["_id"]	   = m_id;
+		user_json["username"]  = m_username;
+		user_json["password"]  = m_password;
+		user_json["active"]    = m_active;
 		user_json["createdAt"] = m_createdAt;
 		user_json["updatedAt"] = m_updatedAt;
 
@@ -310,6 +282,7 @@ public:
 		for (int i = 0; i < m_roles.size(); i++) {
 			roles_array[i] = m_roles[i];
 		}
+
 		user_json["roles"] = std::move(roles_array);
 		
 		return user_json;

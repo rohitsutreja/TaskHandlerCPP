@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClInclude Include="include\Controllers\NoteController.h" />
     <ClInclude Include="include\Controllers\UserController.h" />
+    <ClInclude Include="include\json.h" />
     <ClInclude Include="include\Model\Note.h" />
     <ClInclude Include="include\Model\User.h" />
     <ClInclude Include="include\DB\MongoDB.h" />
