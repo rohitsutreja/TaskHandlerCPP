@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 #include <bsoncxx/document/view.hpp>
 #include <bsoncxx/builder/basic/document.hpp>
 #include <mongocxx/client.hpp>
@@ -15,9 +13,6 @@ private:
 	mongocxx::instance inst{};
 	mongocxx::client client;
 	mongocxx::database db;
-
-
-
 
 public:
 

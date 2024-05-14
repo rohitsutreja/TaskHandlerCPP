@@ -134,19 +134,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\MongoDB.cpp" />
-    <ClCompile Include="src\NoteController.cpp" />
-    <ClCompile Include="src\UserController.cpp" />
     <ClCompile Include="TaskHandler.cpp" />
-    <ClCompile Include="UserController.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\Controllers\NoteController.h" />
-    <ClInclude Include="include\Controllers\UserController.h" />
     <ClInclude Include="include\json.h" />
     <ClInclude Include="include\Model\Note.h" />
     <ClInclude Include="include\Model\User.h" />
     <ClInclude Include="include\DB\MongoDB.h" />
-    <ClInclude Include="Util.h" />
+    <ClInclude Include="include\Util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

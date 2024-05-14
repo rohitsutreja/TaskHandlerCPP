@@ -1,18 +1,15 @@
+#pragma once
 
-
-#include "Util.h"
 #include "User.h"
 #include <string>
 #include <optional>
 #include <iostream>
-#include <bsoncxx/builder/basic/document.hpp>
 #include <bsoncxx/json.hpp>
-#include <mongocxx/client.hpp>
-#include <mongocxx/instance.hpp>
+#include <bsoncxx/builder/basic/document.hpp>
 #include <mongocxx/exception/exception.hpp>
 #include "../DB/MongoDB.h"
+#include "../Util.h"
 
-//extern mongocxx::database db;
 
 using bsoncxx::builder::basic::make_document;
 using bsoncxx::builder::basic::kvp;

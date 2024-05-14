@@ -18,15 +18,6 @@
     <ClCompile Include="TaskHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="UserController.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\UserController.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\NoteController.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\MongoDB.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -38,13 +29,7 @@
     <ClInclude Include="include\Model\Note.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Controllers\UserController.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Controllers\NoteController.h">
+    <ClInclude Include="include\Util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\DB\MongoDB.h">

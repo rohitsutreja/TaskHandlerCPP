@@ -2,11 +2,12 @@
 
 #include <string>
 #include <vector>
-#include"crow_all.h"
-#include <chrono>
-#include"Util.h"
-#include "../DB/MongoDB.h"
 #include <optional>
+#include <chrono>
+#include "crow_all.h"
+#include "../Util.h"
+#include "../DB/MongoDB.h"
+
 
 using bsoncxx::builder::basic::make_document;
 using bsoncxx::builder::basic::kvp;
@@ -99,7 +100,7 @@ public:
 			kvp("isActive", m_active),
 			kvp("createdAt", timestamp),
 			kvp("updatedAt", timestamp)
-			
+
 		);
 
 		auto result = coll.insert_one(document.view());
@@ -264,6 +265,8 @@ public:
 			users.back().setCreatedAt(createdAt);
 			users.back().setUpdatedAt(updatedAt);
 		}
+
+
 		return users;
 	}
 
